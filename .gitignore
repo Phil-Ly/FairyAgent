@@ -66,6 +66,7 @@ checkpoints/
 outputs/
 tmp/
 temp/
+agent.md
 
 # Model / embedding cache
 .cache/

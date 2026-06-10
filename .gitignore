@@ -67,6 +67,7 @@ outputs/
 tmp/
 temp/
 agent.md
+Agent.md
 
 # Model / embedding cache
 .cache/

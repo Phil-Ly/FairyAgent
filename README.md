@@ -1,8 +1,8 @@
 # Mini Agent Harness
 
-This project is a minimal local agent harness prototype. It only includes four core parts: an agent loop, short-term memory, a local tool registry, and a model client.
+This project is a minimal local agent harness prototype built with LangChain and LangGraph. It keeps the first version's small scope while letting LangChain handle model/tool abstractions and LangGraph handle the agent loop.
 
-It intentionally avoids LangChain, LangGraph, databases, web services, MCP, multi-agent orchestration, planners, long-term memory, async queues, and complex tracing.
+It intentionally avoids databases, web services, MCP, multi-agent orchestration, planners, long-term memory, async queues, and complex tracing.
 
 ## Install
 
@@ -44,9 +44,9 @@ uv run pytest
 ```text
 src/mini_agent/
   config.py   # environment configuration
-  models.py   # ModelClient protocol and OpenAI client
-  memory.py   # in-run short-term memory
-  tools.py    # tool data structure, registry, calculator, echo
-  agent.py    # model/tool loop
+  models.py   # ChatOpenAI factory
+  memory.py   # in-run LangChain message memory
+  tools.py    # LangChain calculator and echo tools
+  agent.py    # LangGraph model/tool loop
   cli.py      # command line entrypoint
 ```

@@ -1,59 +1,62 @@
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
 from mini_agent.agent import MiniAgent
 from mini_agent.memory import Memory
-from mini_agent.tools import build_default_registry
+from mini_agent.tools import get_default_tools
 
 
-class FakeModelClient:
+class FakeChatModel:
     """Model client that asks for one calculation, then returns a final answer."""
 
     def __init__(self) -> None:
         self.calls = 0
 
-    def generate(
-        self, messages: list[dict], tools: list[dict] | None = None
-    ) -> dict:
+    def bind_tools(self, tools: list) -> "FakeChatModel":
+        self.tools = tools
+        return self
+
+    def invoke(self, messages: list) -> AIMessage:
         self.calls += 1
         if self.calls == 1:
-            return {
-                "type": "tool_call",
-                "content": None,
-                "tool_calls": [
+            return AIMessage(
+                content="",
+                tool_calls=[
                     {
                         "id": "call_1",
                         "name": "calculator",
-                        "arguments": {"expression": "12 * (3 + 4)"},
+                        "args": {"expression": "12 * (3 + 4)"},
                     }
                 ],
-            }
-        return {"type": "final", "content": "The answer is 84.", "tool_calls": []}
+            )
+        return AIMessage(content="The answer is 84.")
 
 
-class NeverFinalModelClient:
+class NeverFinalChatModel:
     """Model client that never produces a final answer."""
 
-    def generate(
-        self, messages: list[dict], tools: list[dict] | None = None
-    ) -> dict:
-        return {
-            "type": "tool_call",
-            "content": None,
-            "tool_calls": [
+    def bind_tools(self, tools: list) -> "NeverFinalChatModel":
+        self.tools = tools
+        return self
+
+    def invoke(self, messages: list) -> AIMessage:
+        return AIMessage(
+            content="",
+            tool_calls=[
                 {
                     "id": "call_repeat",
                     "name": "echo",
-                    "arguments": {"text": "keep going"},
+                    "args": {"text": "keep going"},
                 }
             ],
-        }
+        )
 
 
 def test_agent_completes_tool_call_loop() -> None:
     memory = Memory()
-    registry = build_default_registry()
-    model_client = FakeModelClient()
+    model = FakeChatModel()
     agent = MiniAgent(
-        model_client=model_client,
-        tool_registry=registry,
+        model=model,
+        tools=get_default_tools(),
         memory=memory,
         max_steps=4,
     )
@@ -61,32 +64,31 @@ def test_agent_completes_tool_call_loop() -> None:
     result = agent.run("What is 12 * (3 + 4)?")
 
     assert result == "The answer is 84."
-    assert model_client.calls == 2
-    assert memory.get_messages() == [
-        {"role": "user", "content": "What is 12 * (3 + 4)?"},
+    assert model.calls == 2
+    messages = memory.get_messages()
+    assert len(messages) == 4
+    assert isinstance(messages[0], HumanMessage)
+    assert messages[0].content == "What is 12 * (3 + 4)?"
+    assert isinstance(messages[1], AIMessage)
+    assert messages[1].tool_calls == [
         {
-            "role": "assistant",
-            "content": None,
-            "tool_calls": [
-                {
-                    "id": "call_1",
-                    "type": "function",
-                    "function": {
-                        "name": "calculator",
-                        "arguments": '{"expression": "12 * (3 + 4)"}',
-                    },
-                }
-            ],
-        },
-        {"role": "tool", "tool_call_id": "call_1", "content": "84"},
-        {"role": "assistant", "content": "The answer is 84."},
+            "id": "call_1",
+            "name": "calculator",
+            "args": {"expression": "12 * (3 + 4)"},
+            "type": "tool_call",
+        }
     ]
+    assert isinstance(messages[2], ToolMessage)
+    assert messages[2].content == "84"
+    assert messages[2].tool_call_id == "call_1"
+    assert isinstance(messages[3], AIMessage)
+    assert messages[3].content == "The answer is 84."
 
 
 def test_agent_stops_at_max_steps() -> None:
     agent = MiniAgent(
-        model_client=NeverFinalModelClient(),
-        tool_registry=build_default_registry(),
+        model=NeverFinalChatModel(),
+        tools=get_default_tools(),
         memory=Memory(),
         max_steps=2,
     )

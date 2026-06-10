@@ -1,62 +1,12 @@
-"""Minimal local tool system."""
+"""LangChain tools exposed to the agent."""
 
 from __future__ import annotations
 
 import ast
 import operator
-from dataclasses import dataclass
 from typing import Any, Callable
 
-
-ToolFunction = Callable[[dict[str, Any]], str]
-
-
-@dataclass(frozen=True)
-class Tool:
-    """A callable tool exposed to the model."""
-
-    name: str
-    description: str
-    parameters_schema: dict[str, Any]
-    function: ToolFunction
-
-
-class ToolRegistry:
-    """Registry for tools available to the agent."""
-
-    def __init__(self) -> None:
-        self._tools: dict[str, Tool] = {}
-
-    def register(self, tool: Tool) -> None:
-        """Register a tool by name."""
-
-        if tool.name in self._tools:
-            raise ValueError(f"Tool already registered: {tool.name}")
-        self._tools[tool.name] = tool
-
-    def get_tool_schemas(self) -> list[dict]:
-        """Return OpenAI-compatible function tool schemas."""
-
-        return [
-            {
-                "type": "function",
-                "function": {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": tool.parameters_schema,
-                },
-            }
-            for tool in self._tools.values()
-        ]
-
-    def call_tool(self, name: str, arguments: dict) -> str:
-        """Call a registered tool and return its string result."""
-
-        try:
-            tool = self._tools[name]
-        except KeyError as exc:
-            raise KeyError(f"Unknown tool: {name}") from exc
-        return tool.function(arguments)
+from langchain_core.tools import BaseTool, tool
 
 
 _BINARY_OPERATORS: dict[type[ast.operator], Callable[[Any, Any], Any]] = {
@@ -74,12 +24,9 @@ _UNARY_OPERATORS: dict[type[ast.unaryop], Callable[[Any], Any]] = {
 }
 
 
-def calculator(arguments: dict[str, Any]) -> str:
+@tool
+def calculator(expression: str) -> str:
     """Safely evaluate a simple arithmetic expression."""
-
-    expression = arguments.get("expression")
-    if not isinstance(expression, str):
-        raise ValueError("calculator requires an expression string.")
 
     try:
         tree = ast.parse(expression, mode="eval")
@@ -119,55 +66,14 @@ def _evaluate_expression(node: ast.AST) -> int | float:
     raise ValueError("Unsupported expression.")
 
 
-def echo(arguments: dict[str, Any]) -> str:
+@tool
+def echo(text: str) -> str:
     """Return the provided text unchanged."""
 
-    text = arguments.get("text")
-    if not isinstance(text, str):
-        raise ValueError("echo requires a text string.")
     return text
 
 
-def build_default_registry() -> ToolRegistry:
-    """Create a registry with the built-in calculator and echo tools."""
+def get_default_tools() -> list[BaseTool]:
+    """Return the built-in LangChain tools."""
 
-    registry = ToolRegistry()
-    registry.register(
-        Tool(
-            name="calculator",
-            description="Safely evaluate a simple arithmetic expression.",
-            parameters_schema={
-                "type": "object",
-                "properties": {
-                    "expression": {
-                        "type": "string",
-                        "description": (
-                            "A simple arithmetic expression, e.g. '2 + 3 * 4'."
-                        ),
-                    }
-                },
-                "required": ["expression"],
-                "additionalProperties": False,
-            },
-            function=calculator,
-        )
-    )
-    registry.register(
-        Tool(
-            name="echo",
-            description="Return the provided text unchanged.",
-            parameters_schema={
-                "type": "object",
-                "properties": {
-                    "text": {
-                        "type": "string",
-                        "description": "Text to return unchanged.",
-                    }
-                },
-                "required": ["text"],
-                "additionalProperties": False,
-            },
-            function=echo,
-        )
-    )
-    return registry
+    return [calculator, echo]

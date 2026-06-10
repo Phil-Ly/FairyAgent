@@ -23,14 +23,40 @@ Set `OPENAI_API_KEY` in `.env`. Optional values:
 
 ## Run
 
+Run with the configured OpenAI model:
+
+```bash
+uv run python -m mini_agent.cli run "What is 2 + 3 * 4?"
+```
+
+The legacy prompt-only form is still supported:
+
 ```bash
 uv run python -m mini_agent.cli "What is 2 + 3 * 4?"
 ```
 
-You can also use the installed script:
+You can also use the installed script after `uv sync`:
 
 ```bash
-uv run mini-agent "What is 12 * (3 + 4)?"
+uv run mini-agent run "What is 12 * (3 + 4)?"
+```
+
+Run a deterministic local smoke demo without an API key:
+
+```bash
+uv run python -m mini_agent.cli demo "What is 2 + 3 * 4?"
+```
+
+List bundled tools:
+
+```bash
+uv run python -m mini_agent.cli tools
+```
+
+Check local deployment readiness:
+
+```bash
+uv run python -m mini_agent.cli doctor
 ```
 
 ## Test
@@ -47,6 +73,7 @@ src/mini_agent/
   models.py   # ChatOpenAI factory
   memory.py   # in-run LangChain message memory
   tools.py    # LangChain calculator and echo tools
+  demo.py     # deterministic local demo model
   agent.py    # LangGraph model/tool loop
   cli.py      # command line entrypoint
 ```

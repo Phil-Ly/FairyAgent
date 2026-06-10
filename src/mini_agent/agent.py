@@ -1,57 +1,110 @@
-"""Minimal agent loop."""
+"""Minimal LangGraph agent loop."""
 
 from __future__ import annotations
 
+from typing import Annotated, Any, TypedDict
+
+from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
+from langchain_core.tools import BaseTool
+from langgraph.graph import END, START, StateGraph, add_messages
+
 from mini_agent.memory import Memory
-from mini_agent.models import ModelClient
-from mini_agent.tools import ToolRegistry
 
 
 MAX_STEPS_MESSAGE = "Agent stopped because it reached the maximum number of steps."
 
 
+class AgentState(TypedDict):
+    """State carried through the LangGraph workflow."""
+
+    messages: Annotated[list[BaseMessage], add_messages]
+    llm_calls: int
+
+
 class MiniAgent:
-    """Runs a model/tool loop until a final answer is produced."""
+    """Runs a LangGraph model/tool loop until a final answer is produced."""
 
     def __init__(
         self,
-        model_client: ModelClient,
-        tool_registry: ToolRegistry,
+        model: Any,
+        tools: list[BaseTool],
         memory: Memory,
         max_steps: int,
     ) -> None:
-        self.model_client = model_client
-        self.tool_registry = tool_registry
+        self.model = model
+        self.tools = tools
+        self.model_with_tools = model.bind_tools(tools)
+        self.tools_by_name = {tool.name: tool for tool in tools}
         self.memory = memory
         self.max_steps = max_steps
+        self.graph = self._build_graph()
 
     def run(self, user_input: str) -> str:
         """Run the agent for a single user input."""
 
         self.memory.add_user_message(user_input)
+        state = self.graph.invoke(
+            {"messages": self.memory.get_messages(), "llm_calls": 0}
+        )
+        messages = state["messages"]
+        self.memory.set_messages(messages)
 
-        for _ in range(self.max_steps):
-            response = self.model_client.generate(
-                self.memory.get_messages(),
-                self.tool_registry.get_tool_schemas(),
+        last_message = messages[-1]
+        return str(last_message.content)
+
+    def _build_graph(self):
+        """Build and compile the LangGraph workflow."""
+
+        workflow = StateGraph(AgentState)
+        workflow.add_node("llm", self._call_model)
+        workflow.add_node("tools", self._call_tools)
+        workflow.add_node("max_steps", self._max_steps)
+        workflow.add_edge(START, "llm")
+        workflow.add_conditional_edges(
+            "llm",
+            self._route_after_model,
+            {"tools": "tools", "max_steps": "max_steps", END: END},
+        )
+        workflow.add_edge("tools", "llm")
+        workflow.add_edge("max_steps", END)
+        return workflow.compile()
+
+    def _call_model(self, state: AgentState) -> dict:
+        """Call the chat model with the current messages."""
+
+        response = self.model_with_tools.invoke(state["messages"])
+        return {
+            "messages": [response],
+            "llm_calls": state.get("llm_calls", 0) + 1,
+        }
+
+    def _call_tools(self, state: AgentState) -> dict:
+        """Execute requested tools and return ToolMessage results."""
+
+        last_message = state["messages"][-1]
+        tool_messages: list[ToolMessage] = []
+        for tool_call in getattr(last_message, "tool_calls", []):
+            tool_name = tool_call["name"]
+            tool_args = tool_call.get("args", {})
+            tool = self.tools_by_name[tool_name]
+            result = tool.invoke(tool_args)
+            tool_messages.append(
+                ToolMessage(content=str(result), tool_call_id=tool_call["id"])
             )
+        return {"messages": tool_messages}
 
-            if response["type"] == "final":
-                content = response.get("content") or ""
-                self.memory.add_assistant_message(content)
-                return content
+    def _max_steps(self, state: AgentState) -> dict:
+        """Return a final message when the LLM call budget is exhausted."""
 
-            if response["type"] == "tool_call":
-                tool_calls = response.get("tool_calls", [])
-                self.memory.add_assistant_tool_calls(tool_calls)
-                for tool_call in tool_calls:
-                    result = self.tool_registry.call_tool(
-                        tool_call["name"],
-                        tool_call["arguments"],
-                    )
-                    self.memory.add_tool_message(tool_call["id"], result)
-                continue
+        return {"messages": [AIMessage(content=MAX_STEPS_MESSAGE)]}
 
-            raise ValueError(f"Unknown model response type: {response['type']}")
+    def _route_after_model(self, state: AgentState) -> str:
+        """Route to tools, max-step stop, or end after a model call."""
 
-        return MAX_STEPS_MESSAGE
+        last_message = state["messages"][-1]
+        tool_calls = getattr(last_message, "tool_calls", [])
+        if not tool_calls:
+            return END
+        if state.get("llm_calls", 0) >= self.max_steps:
+            return "max_steps"
+        return "tools"

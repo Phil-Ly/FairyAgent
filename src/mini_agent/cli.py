@@ -7,8 +7,8 @@ import argparse
 from mini_agent.agent import MiniAgent
 from mini_agent.config import load_config
 from mini_agent.memory import Memory
-from mini_agent.models import OpenAIModelClient
-from mini_agent.tools import build_default_registry
+from mini_agent.models import build_model
+from mini_agent.tools import get_default_tools
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -28,11 +28,8 @@ def main() -> None:
         raise SystemExit("OPENAI_API_KEY is required. Copy .env.example to .env.")
 
     agent = MiniAgent(
-        model_client=OpenAIModelClient(
-            api_key=config.openai_api_key,
-            model_name=config.model_name,
-        ),
-        tool_registry=build_default_registry(),
+        model=build_model(config),
+        tools=get_default_tools(),
         memory=Memory(),
         max_steps=config.max_steps,
     )

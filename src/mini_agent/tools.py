@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import ast
 import operator
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from langchain_core.tools import BaseTool, tool
-
 
 _BINARY_OPERATORS: dict[type[ast.operator], Callable[[Any, Any], Any]] = {
     ast.Add: operator.add,

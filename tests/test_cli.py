@@ -5,11 +5,17 @@ from mini_agent.models import ModelConfigurationError
 
 
 def test_normalize_argv_preserves_subcommands() -> None:
-    assert normalize_argv(["demo", "What is 2 + 2?"]) == ["demo", "What is 2 + 2?"]
+    assert normalize_argv(["run", "What is 2 + 2?"]) == ["run", "What is 2 + 2?"]
+    assert normalize_argv(["chat"]) == ["chat"]
 
 
 def test_normalize_argv_treats_plain_prompt_as_run_command() -> None:
     assert normalize_argv(["What is 2 + 2?"]) == ["run", "What is 2 + 2?"]
+    assert normalize_argv(["demo", "What is 2 + 2?"]) == [
+        "run",
+        "demo",
+        "What is 2 + 2?",
+    ]
 
 
 def test_tools_command_lists_default_tools(capsys: pytest.CaptureFixture[str]) -> None:
@@ -18,13 +24,6 @@ def test_tools_command_lists_default_tools(capsys: pytest.CaptureFixture[str]) -
     output = capsys.readouterr().out
     assert "calculator" in output
     assert "echo" in output
-
-
-def test_demo_command_runs_without_api_key(capsys: pytest.CaptureFixture[str]) -> None:
-    main(["demo", "What is 2 + 3 * 4?"])
-
-    output = capsys.readouterr().out
-    assert "The answer is 14." in output
 
 
 def test_run_command_reports_missing_model_dependency(
@@ -43,6 +42,26 @@ def test_run_command_reports_missing_model_dependency(
         main(["run", "hello"])
 
 
+def test_run_command_reports_missing_model_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MODEL_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    with pytest.raises(SystemExit, match="MODEL_API_KEY is required"):
+        main(["run", "hello"])
+
+
+def test_chat_command_reports_missing_model_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MODEL_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    with pytest.raises(SystemExit, match="MODEL_API_KEY is required"):
+        main(["chat"])
+
+
 def test_doctor_command_prints_runtime_status(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -50,8 +69,38 @@ def test_doctor_command_prints_runtime_status(
 
     output = capsys.readouterr().out
     assert "Mini Agent doctor" in output
+    assert "Python:" in output
+    assert "uv:" in output
+    assert "langchain:" in output
+    assert "langgraph:" in output
     assert "OPENAI_API_KEY:" in output
+    assert "MODEL_PROVIDER:" in output
+    assert "MODEL_BASE_URL:" in output
+    assert "MODEL_API_KEY:" in output
+    assert "test-key" not in output
     assert "tools: calculator, echo" in output
+
+
+def test_run_command_reports_configuration_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MAX_STEPS", "abc")
+
+    with pytest.raises(SystemExit, match="MAX_STEPS must be an integer"):
+        main(["run", "hello"])
+
+
+def test_doctor_reports_configuration_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("MAX_STEPS", "abc")
+
+    main(["doctor"])
+
+    output = capsys.readouterr().out
+    assert "configuration: invalid" in output
+    assert "MAX_STEPS must be an integer" in output
 
 
 def test_parser_includes_product_commands() -> None:
@@ -60,6 +109,7 @@ def test_parser_includes_product_commands() -> None:
     help_text = parser.format_help()
 
     assert "run" in help_text
-    assert "demo" in help_text
+    assert "chat" in help_text
     assert "tools" in help_text
     assert "doctor" in help_text
+    assert "demo" not in help_text

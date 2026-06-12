@@ -1,28 +1,27 @@
-"""Deterministic demo model for local smoke tests."""
+"""Deterministic model used by local examples."""
 
 from __future__ import annotations
 
 import re
-from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_core.tools import BaseTool
 
 
-class DemoChatModel:
-    """Small fake chat model that demonstrates the LangGraph tool loop."""
+class ExampleCalculatorModel:
+    """Small fake chat model that demonstrates the tool loop locally."""
 
     def __init__(self) -> None:
         self.tools: list[BaseTool] = []
 
-    def bind_tools(self, tools: list[BaseTool]) -> "DemoChatModel":
+    def bind_tools(self, tools: list[BaseTool]) -> ExampleCalculatorModel:
         """Store tools and return a model-like object."""
 
         self.tools = tools
         return self
 
     def invoke(self, messages: list[BaseMessage]) -> AIMessage:
-        """Return a deterministic AIMessage for demo use."""
+        """Return deterministic AI messages for local examples."""
 
         last_message = messages[-1]
         if isinstance(last_message, ToolMessage):
@@ -35,7 +34,7 @@ class DemoChatModel:
                     content="",
                     tool_calls=[
                         {
-                            "id": "demo_calculator_1",
+                            "id": "example_calculator_1",
                             "name": "calculator",
                             "args": {"expression": expression},
                         }
@@ -43,7 +42,7 @@ class DemoChatModel:
                 )
 
         return AIMessage(
-            content="Demo mode can calculate simple arithmetic expressions."
+            content="Example mode can calculate simple arithmetic expressions."
         )
 
 
@@ -58,7 +57,7 @@ def _extract_arithmetic_expression(text: str) -> str | None:
 
 
 def _looks_like_expression(expression: str) -> bool:
-    """Return True when text looks like arithmetic rather than a single number."""
+    """Return True when text looks like arithmetic."""
 
     has_digit = any(character.isdigit() for character in expression)
     has_operator = any(character in "+-*/%" for character in expression)

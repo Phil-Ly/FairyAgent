@@ -10,7 +10,6 @@ from langgraph.graph import END, START, StateGraph, add_messages
 
 from mini_agent.memory import Memory
 
-
 MAX_STEPS_MESSAGE = "Agent stopped because it reached the maximum number of steps."
 
 
@@ -86,10 +85,51 @@ class MiniAgent:
         for tool_call in getattr(last_message, "tool_calls", []):
             tool_name = tool_call["name"]
             tool_args = tool_call.get("args", {})
+            if tool_name not in self.tools_by_name:
+                tool_messages.append(
+                    ToolMessage(
+                        content=(
+                            "Tool error (unknown_tool): "
+                            f"Tool '{tool_name}' is not registered."
+                        ),
+                        tool_call_id=tool_call["id"],
+                        additional_kwargs={
+                            "status": "error",
+                            "error_code": "unknown_tool",
+                            "tool_name": tool_name,
+                        },
+                    )
+                )
+                continue
+
             tool = self.tools_by_name[tool_name]
-            result = tool.invoke(tool_args)
+            try:
+                result = tool.invoke(tool_args)
+            except Exception as exc:
+                tool_messages.append(
+                    ToolMessage(
+                        content=(
+                            "Tool error (tool_failed): "
+                            f"Tool '{tool_name}' failed."
+                        ),
+                        tool_call_id=tool_call["id"],
+                        additional_kwargs={
+                            "status": "error",
+                            "error_code": "tool_failed",
+                            "tool_name": tool_name,
+                            "error_type": type(exc).__name__,
+                            "error_message": str(exc),
+                        },
+                    )
+                )
+                continue
+
             tool_messages.append(
-                ToolMessage(content=str(result), tool_call_id=tool_call["id"])
+                ToolMessage(
+                    content=str(result),
+                    tool_call_id=tool_call["id"],
+                    additional_kwargs={"status": "ok", "tool_name": tool_name},
+                )
             )
         return {"messages": tool_messages}
 

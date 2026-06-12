@@ -96,6 +96,16 @@ List bundled tools:
 uv run python -m mini_agent.cli tools
 ```
 
+Bundled tools are managed through the local tool runtime:
+
+- `calculator`: safely evaluates simple arithmetic.
+- `echo`: returns text unchanged.
+- `list_files`: lists direct children of a workspace directory.
+
+Tool calls return normalized runtime metadata such as status, duration,
+risk level, and read-only state. The default bundled tools are low-risk
+and read-only.
+
 Check local deployment readiness:
 
 ```bash
@@ -136,7 +146,8 @@ src/mini_agent/
   config.py   # environment configuration
   models.py   # ChatOpenAI factory
   memory.py   # in-run LangChain message memory
-  tools.py    # LangChain calculator and echo tools
+  tool_runtime.py  # tool metadata and normalized tool results
+  tools.py    # bundled low-risk LangChain tools
   diagnostics.py    # runtime readiness and tool display helpers
   chat_session.py   # line-oriented chat command handling
   agent.py    # LangGraph model/tool loop

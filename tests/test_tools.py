@@ -1,6 +1,6 @@
 import pytest
 
-from mini_agent.tools import calculator, echo, get_default_tools
+from mini_agent.tools import calculator, echo, get_default_tools, list_files
 
 
 def test_calculator_evaluates_simple_expression() -> None:
@@ -23,4 +23,11 @@ def test_echo_returns_text() -> None:
 def test_get_default_tools_returns_calculator_and_echo() -> None:
     tools = get_default_tools()
 
-    assert [tool.name for tool in tools] == ["calculator", "echo"]
+    assert [tool.name for tool in tools] == ["calculator", "echo", "list_files"]
+
+
+def test_list_files_rejects_path_traversal(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(ValueError, match="outside the workspace"):
+        list_files.invoke({"path": ".."})

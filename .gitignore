@@ -68,6 +68,7 @@ tmp/
 temp/
 agent.md
 Agent.md
+Feature.md
 
 # Model / embedding cache
 .cache/

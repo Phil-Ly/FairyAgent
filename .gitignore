@@ -69,6 +69,9 @@ temp/
 agent.md
 Agent.md
 Feature.md
+AGENT.md
+SPEC.md
+TESTING.md
 
 # Model / embedding cache
 .cache/

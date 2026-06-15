@@ -3,7 +3,7 @@ from langchain_core.tools import tool
 
 from mini_agent.agent import MiniAgent
 from mini_agent.memory import Memory
-from mini_agent.tools import get_default_tools
+from mini_agent.tools import get_default_tool_runtime, get_default_tools
 
 
 class FakeChatModel:
@@ -161,8 +161,28 @@ def test_agent_completes_tool_call_loop() -> None:
     assert isinstance(messages[2], ToolMessage)
     assert messages[2].content == "84"
     assert messages[2].tool_call_id == "call_1"
+    assert messages[2].additional_kwargs["status"] == "success"
+    assert messages[2].additional_kwargs["risk_level"] == "low"
+    assert messages[2].additional_kwargs["duration_ms"] >= 0
     assert isinstance(messages[3], AIMessage)
     assert messages[3].content == "The answer is 84."
+
+
+def test_agent_accepts_tool_runtime_and_binds_langchain_tools() -> None:
+    model = FakeChatModel()
+
+    MiniAgent(
+        model=model,
+        tools=get_default_tool_runtime(),
+        memory=Memory(),
+        max_steps=4,
+    )
+
+    assert [tool.name for tool in model.tools] == [
+        "calculator",
+        "echo",
+        "list_files",
+    ]
 
 
 def test_agent_stops_at_max_steps() -> None:
@@ -201,6 +221,8 @@ def test_agent_returns_tool_message_for_unknown_tool() -> None:
     assert tool_message.content == (
         "Tool error (unknown_tool): Tool 'missing_tool' is not registered."
     )
+    assert tool_message.additional_kwargs["status"] == "error"
+    assert tool_message.additional_kwargs["error_code"] == "unknown_tool"
 
 
 def test_agent_returns_tool_message_for_bad_tool_arguments() -> None:

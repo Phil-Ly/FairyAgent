@@ -5,9 +5,12 @@ from __future__ import annotations
 import ast
 import operator
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from langchain_core.tools import BaseTool, tool
+
+from mini_agent.tool_runtime import ToolMetadata, ToolRiskLevel, ToolRuntime
 
 _BINARY_OPERATORS: dict[type[ast.operator], Callable[[Any, Any], Any]] = {
     ast.Add: operator.add,
@@ -73,7 +76,44 @@ def echo(text: str) -> str:
     return text
 
 
+@tool
+def list_files(path: str = ".") -> str:
+    """List direct children of a workspace directory."""
+
+    workspace_root = Path.cwd().resolve()
+    target = (workspace_root / path).resolve()
+    if not target.is_relative_to(workspace_root):
+        raise ValueError("Path is outside the workspace.")
+    if not target.exists():
+        raise ValueError("Path does not exist.")
+    if not target.is_dir():
+        raise ValueError("Path is not a directory.")
+
+    entries = []
+    for child in sorted(target.iterdir(), key=lambda item: item.name):
+        suffix = "/" if child.is_dir() else ""
+        entries.append(f"{child.name}{suffix}")
+    return "\n".join(entries) if entries else "(empty)"
+
+
 def get_default_tools() -> list[BaseTool]:
     """Return the built-in LangChain tools."""
 
-    return [calculator, echo]
+    return [calculator, echo, list_files]
+
+
+def get_default_tool_runtime() -> ToolRuntime:
+    """Return the default low-risk local tool runtime."""
+
+    tools = get_default_tools()
+    metadata = {
+        tool.name: ToolMetadata(
+            name=tool.name,
+            description=tool.description or "",
+            risk_level=ToolRiskLevel.LOW,
+            requires_confirmation=False,
+            read_only=True,
+        )
+        for tool in tools
+    }
+    return ToolRuntime.from_tools(tools, metadata=metadata)

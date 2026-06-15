@@ -9,6 +9,7 @@ from langchain_core.tools import BaseTool
 from langgraph.graph import END, START, StateGraph, add_messages
 
 from mini_agent.memory import Memory
+from mini_agent.tool_runtime import ToolRuntime
 
 MAX_STEPS_MESSAGE = "Agent stopped because it reached the maximum number of steps."
 
@@ -26,14 +27,16 @@ class MiniAgent:
     def __init__(
         self,
         model: Any,
-        tools: list[BaseTool],
+        tools: list[BaseTool] | ToolRuntime,
         memory: Memory,
         max_steps: int,
     ) -> None:
         self.model = model
-        self.tools = tools
-        self.model_with_tools = model.bind_tools(tools)
-        self.tools_by_name = {tool.name: tool for tool in tools}
+        self.tool_runtime = (
+            tools if isinstance(tools, ToolRuntime) else ToolRuntime.from_tools(tools)
+        )
+        self.tools = self.tool_runtime.get_tools()
+        self.model_with_tools = model.bind_tools(self.tools)
         self.memory = memory
         self.max_steps = max_steps
         self.graph = self._build_graph()
@@ -85,50 +88,12 @@ class MiniAgent:
         for tool_call in getattr(last_message, "tool_calls", []):
             tool_name = tool_call["name"]
             tool_args = tool_call.get("args", {})
-            if tool_name not in self.tools_by_name:
-                tool_messages.append(
-                    ToolMessage(
-                        content=(
-                            "Tool error (unknown_tool): "
-                            f"Tool '{tool_name}' is not registered."
-                        ),
-                        tool_call_id=tool_call["id"],
-                        additional_kwargs={
-                            "status": "error",
-                            "error_code": "unknown_tool",
-                            "tool_name": tool_name,
-                        },
-                    )
-                )
-                continue
-
-            tool = self.tools_by_name[tool_name]
-            try:
-                result = tool.invoke(tool_args)
-            except Exception as exc:
-                tool_messages.append(
-                    ToolMessage(
-                        content=(
-                            "Tool error (tool_failed): "
-                            f"Tool '{tool_name}' failed."
-                        ),
-                        tool_call_id=tool_call["id"],
-                        additional_kwargs={
-                            "status": "error",
-                            "error_code": "tool_failed",
-                            "tool_name": tool_name,
-                            "error_type": type(exc).__name__,
-                            "error_message": str(exc),
-                        },
-                    )
-                )
-                continue
-
+            result = self.tool_runtime.call_tool(tool_name, tool_args)
             tool_messages.append(
                 ToolMessage(
-                    content=str(result),
+                    content=result.to_message_content(),
                     tool_call_id=tool_call["id"],
-                    additional_kwargs={"status": "ok", "tool_name": tool_name},
+                    additional_kwargs=result.to_message_kwargs(),
                 )
             )
         return {"messages": tool_messages}

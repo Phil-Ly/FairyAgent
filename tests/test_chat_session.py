@@ -1,12 +1,12 @@
-from mini_agent.agent import MiniAgent
-from mini_agent.chat_session import ChatSession
-from mini_agent.memory import Memory
-from mini_agent.tools import get_default_tools
+from agentloop.agent import AgentLoop
+from agentloop.chat_session import ChatSession
+from agentloop.memory import Memory
+from agentloop.tools import get_default_tools
 from tests.fakes import DeterministicCalculatorModel
 
 
 def build_test_session() -> ChatSession:
-    agent = MiniAgent(
+    agent = AgentLoop(
         model=DeterministicCalculatorModel(),
         tools=get_default_tools(),
         memory=Memory(),
@@ -49,7 +49,7 @@ def test_chat_session_supports_clear_history_tools_and_doctor() -> None:
     assert clear_outputs == ["system: memory cleared"]
     assert history_outputs == ["history: empty"]
     assert any("calculator:" in output for output in tools_outputs)
-    assert "Mini Agent doctor" in doctor_outputs
+    assert "AgentLoop doctor" in doctor_outputs
     assert session.agent.memory.get_messages() == []
 
 

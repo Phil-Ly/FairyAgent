@@ -9,8 +9,8 @@ from collections.abc import Iterable
 
 from langchain_core.tools import BaseTool
 
-from mini_agent.config import ConfigurationError, load_config
-from mini_agent.tools import get_default_tools
+from agentloop.config import ConfigurationError, load_config
+from agentloop.tools import get_default_tools
 
 
 def get_tool_lines(tools: Iterable[BaseTool]) -> list[str]:
@@ -31,7 +31,7 @@ def get_doctor_lines() -> list[str]:
         config_error = None
 
     lines = [
-        "Mini Agent doctor",
+        "AgentLoop doctor",
         f"Python: {platform.python_version()}",
         f"uv: {'installed' if shutil.which('uv') else 'missing'}",
         f"langchain: {_package_status('langchain')}",

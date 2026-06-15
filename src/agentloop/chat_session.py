@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from langchain_core.messages import BaseMessage
 
-from mini_agent.agent import MiniAgent
-from mini_agent.diagnostics import get_doctor_lines, get_tool_lines
+from agentloop.agent import AgentLoop
+from agentloop.diagnostics import get_doctor_lines, get_tool_lines
 
 
 class ChatSession:
     """Handles chat control commands and agent turns for one process."""
 
-    def __init__(self, agent: MiniAgent) -> None:
+    def __init__(self, agent: AgentLoop) -> None:
         self.agent = agent
         self.should_exit = False
 

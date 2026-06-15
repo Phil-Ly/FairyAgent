@@ -1,6 +1,6 @@
 import pytest
 
-from mini_agent.tools import calculator, echo, get_default_tools, list_files
+from agentloop.tools import calculator, echo, get_default_tools, list_files
 
 
 def test_calculator_evaluates_simple_expression() -> None:

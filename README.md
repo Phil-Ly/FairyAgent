@@ -1,4 +1,4 @@
-# Mini Agent Harness
+# AgentLoop Harness
 
 This project is a minimal local agent harness prototype built with LangChain and LangGraph. It keeps the first version's small scope while letting LangChain handle model/tool abstractions and LangGraph handle the agent loop.
 
@@ -51,25 +51,25 @@ Never commit `.env` or real API keys. `.env.example` should contain placeholders
 Run with the configured model provider after installing the optional compatible-provider extra and setting `MODEL_API_KEY`:
 
 ```bash
-uv run python -m mini_agent.cli run "What is 2 + 3 * 4?"
+uv run python -m agentloop.cli run "What is 2 + 3 * 4?"
 ```
 
 The legacy prompt-only form is still supported:
 
 ```bash
-uv run python -m mini_agent.cli "What is 2 + 3 * 4?"
+uv run python -m agentloop.cli "What is 2 + 3 * 4?"
 ```
 
 You can also use the installed script after `uv sync`:
 
 ```bash
-uv run mini-agent run "What is 12 * (3 + 4)?"
+uv run agentloop run "What is 12 * (3 + 4)?"
 ```
 
 Start a provider-backed multi-turn chat session:
 
 ```bash
-uv run python -m mini_agent.cli chat
+uv run python -m agentloop.cli chat
 ```
 
 Inside chat, use `/exit`, `/clear`, `/history`, `/tools`, and `/doctor`.
@@ -88,12 +88,12 @@ Start a local example chat session without an API key:
 uv run python examples/local_chat.py
 ```
 
-The local examples live outside `src/mini_agent`, so the product runtime stays provider-backed and free of test or example model logic.
+The local examples live outside `src/agentloop`, so the product runtime stays provider-backed and free of test or example model logic.
 
 List bundled tools:
 
 ```bash
-uv run python -m mini_agent.cli tools
+uv run python -m agentloop.cli tools
 ```
 
 Bundled tools are managed through the local tool runtime:
@@ -109,7 +109,7 @@ and read-only.
 Check local deployment readiness:
 
 ```bash
-uv run python -m mini_agent.cli doctor
+uv run python -m agentloop.cli doctor
 ```
 
 `doctor` reports Python, uv, core LangChain dependencies, provider configuration, key presence, and bundled tools. It never prints the API key value.
@@ -132,7 +132,7 @@ Real provider integration should stay optional until a project or deployment env
 
 ```bash
 uv run pytest
-uv run pytest --cov=mini_agent
+uv run pytest --cov=agentloop
 uv run ruff check .
 uv run pyright
 ```
@@ -142,7 +142,7 @@ If `uv` is not installed, install it first and rerun `uv sync`. The source tree 
 ## Structure
 
 ```text
-src/mini_agent/
+src/agentloop/
   config.py   # environment configuration
   models.py   # ChatOpenAI factory
   memory.py   # in-run LangChain message memory

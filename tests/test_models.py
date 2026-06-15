@@ -3,8 +3,8 @@ import types
 
 import pytest
 
-from mini_agent.config import AppConfig
-from mini_agent.models import ModelConfigurationError, build_model
+from agentloop.config import AppConfig
+from agentloop.models import ModelConfigurationError, build_model
 
 
 class FakeChatOpenAI:

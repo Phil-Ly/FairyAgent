@@ -8,8 +8,8 @@ from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from langgraph.graph import END, START, StateGraph, add_messages
 
-from mini_agent.memory import Memory
-from mini_agent.tool_runtime import ToolRuntime
+from agentloop.memory import Memory
+from agentloop.tool_runtime import ToolRuntime
 
 MAX_STEPS_MESSAGE = "Agent stopped because it reached the maximum number of steps."
 
@@ -21,7 +21,7 @@ class AgentState(TypedDict):
     llm_calls: int
 
 
-class MiniAgent:
+class AgentLoop:
     """Runs a LangGraph model/tool loop until a final answer is produced."""
 
     def __init__(

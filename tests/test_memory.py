@@ -1,6 +1,6 @@
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from mini_agent.memory import Memory
+from agentloop.memory import Memory
 
 
 def test_add_user_message() -> None:

@@ -1,17 +1,17 @@
-"""Command line entrypoint for the mini agent."""
+"""Command line entrypoint for AgentLoop."""
 
 from __future__ import annotations
 
 import argparse
 import sys
 
-from mini_agent.agent import MiniAgent
-from mini_agent.chat_session import ChatSession
-from mini_agent.config import ConfigurationError, load_config
-from mini_agent.diagnostics import get_doctor_lines, get_tool_lines
-from mini_agent.memory import Memory
-from mini_agent.models import ModelConfigurationError, build_model
-from mini_agent.tools import get_default_tools
+from agentloop.agent import AgentLoop
+from agentloop.chat_session import ChatSession
+from agentloop.config import ConfigurationError, load_config
+from agentloop.diagnostics import get_doctor_lines, get_tool_lines
+from agentloop.memory import Memory
+from agentloop.models import ModelConfigurationError, build_model
+from agentloop.tools import get_default_tools
 
 COMMANDS = {"run", "chat", "tools", "doctor"}
 
@@ -28,7 +28,7 @@ def normalize_argv(argv: list[str] | None = None) -> list[str]:
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
 
-    parser = argparse.ArgumentParser(description="Run the mini agent harness.")
+    parser = argparse.ArgumentParser(description="Run the AgentLoop harness.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     run_parser = subparsers.add_parser("run", help="Run with the configured model.")
@@ -78,7 +78,7 @@ def main(argv: list[str] | None = None) -> None:
 
 
 def run_chat_session(session: ChatSession) -> None:
-    """Run an interactive chat session around a MiniAgent."""
+    """Run an interactive chat session around an AgentLoop."""
 
     print("system: chat started; use /exit, /clear, /history, /tools, /doctor")
     while not session.should_exit:
@@ -95,7 +95,7 @@ def run_chat_session(session: ChatSession) -> None:
 def _build_agent(
     max_steps: int | None = None,
     model_name: str | None = None,
-) -> MiniAgent:
+) -> AgentLoop:
     """Build an agent from configured provider settings."""
 
     try:
@@ -119,7 +119,7 @@ def _build_agent(
     except ModelConfigurationError as exc:
         raise SystemExit(str(exc)) from exc
 
-    return MiniAgent(
+    return AgentLoop(
         model=model,
         tools=get_default_tools(),
         memory=Memory(),

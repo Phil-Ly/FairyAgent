@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from mini_agent.tool_runtime import (
+from agentloop.tool_runtime import (
     ToolResultStatus,
     ToolRiskLevel,
     ToolRuntime,
 )
-from mini_agent.tools import calculator, get_default_tool_runtime
+from agentloop.tools import calculator, get_default_tool_runtime
 
 
 def test_tool_runtime_returns_structured_success_result() -> None:

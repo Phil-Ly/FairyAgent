@@ -1,9 +1,9 @@
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
 
-from mini_agent.agent import MiniAgent
-from mini_agent.memory import Memory
-from mini_agent.tools import get_default_tool_runtime, get_default_tools
+from agentloop.agent import AgentLoop
+from agentloop.memory import Memory
+from agentloop.tools import get_default_tool_runtime, get_default_tools
 
 
 class FakeChatModel:
@@ -134,7 +134,7 @@ def broken() -> str:
 def test_agent_completes_tool_call_loop() -> None:
     memory = Memory()
     model = FakeChatModel()
-    agent = MiniAgent(
+    agent = AgentLoop(
         model=model,
         tools=get_default_tools(),
         memory=memory,
@@ -171,7 +171,7 @@ def test_agent_completes_tool_call_loop() -> None:
 def test_agent_accepts_tool_runtime_and_binds_langchain_tools() -> None:
     model = FakeChatModel()
 
-    MiniAgent(
+    AgentLoop(
         model=model,
         tools=get_default_tool_runtime(),
         memory=Memory(),
@@ -187,7 +187,7 @@ def test_agent_accepts_tool_runtime_and_binds_langchain_tools() -> None:
 
 def test_agent_stops_at_max_steps() -> None:
     model = NeverFinalChatModel()
-    agent = MiniAgent(
+    agent = AgentLoop(
         model=model,
         tools=get_default_tools(),
         memory=Memory(),
@@ -202,7 +202,7 @@ def test_agent_stops_at_max_steps() -> None:
 
 def test_agent_returns_tool_message_for_unknown_tool() -> None:
     memory = Memory()
-    agent = MiniAgent(
+    agent = AgentLoop(
         model=UnknownToolThenFinalModel(),
         tools=get_default_tools(),
         memory=memory,
@@ -227,7 +227,7 @@ def test_agent_returns_tool_message_for_unknown_tool() -> None:
 
 def test_agent_returns_tool_message_for_bad_tool_arguments() -> None:
     memory = Memory()
-    agent = MiniAgent(
+    agent = AgentLoop(
         model=BadArgumentsThenFinalModel(),
         tools=get_default_tools(),
         memory=memory,
@@ -245,7 +245,7 @@ def test_agent_returns_tool_message_for_bad_tool_arguments() -> None:
 
 def test_agent_returns_tool_message_for_tool_runtime_error() -> None:
     memory = Memory()
-    agent = MiniAgent(
+    agent = AgentLoop(
         model=FailingToolThenFinalModel(),
         tools=[broken],
         memory=memory,

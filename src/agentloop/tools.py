@@ -10,7 +10,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool, tool
 
-from mini_agent.tool_runtime import ToolMetadata, ToolRiskLevel, ToolRuntime
+from agentloop.tool_runtime import ToolMetadata, ToolRiskLevel, ToolRuntime
 
 _BINARY_OPERATORS: dict[type[ast.operator], Callable[[Any, Any], Any]] = {
     ast.Add: operator.add,

@@ -2,11 +2,11 @@ import os
 
 import pytest
 
-from mini_agent.agent import MiniAgent
-from mini_agent.config import AppConfig
-from mini_agent.memory import Memory
-from mini_agent.models import build_model
-from mini_agent.tools import get_default_tools
+from agentloop.agent import AgentLoop
+from agentloop.config import AppConfig
+from agentloop.memory import Memory
+from agentloop.models import build_model
+from agentloop.tools import get_default_tools
 
 
 @pytest.mark.integration
@@ -22,7 +22,7 @@ def test_model_provider_can_answer_without_tool() -> None:
 
     pytest.importorskip("langchain_openai")
 
-    agent = MiniAgent(
+    agent = AgentLoop(
         model=build_model(
             AppConfig(
                 MODEL_PROVIDER=os.getenv("MODEL_PROVIDER", "openai_compatible"),

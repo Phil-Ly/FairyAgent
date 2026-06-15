@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib
 
-from mini_agent.config import AppConfig
+from agentloop.config import AppConfig
 
 
 class ModelConfigurationError(RuntimeError):

@@ -1,6 +1,6 @@
 import pytest
 
-from mini_agent.config import ConfigurationError, load_config
+from agentloop.config import ConfigurationError, load_config
 
 
 def test_load_config_uses_defaults(monkeypatch: pytest.MonkeyPatch) -> None:

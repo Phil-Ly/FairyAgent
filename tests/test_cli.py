@@ -1,7 +1,7 @@
 import pytest
 
-from mini_agent.cli import build_parser, main, normalize_argv
-from mini_agent.models import ModelConfigurationError
+from agentloop.cli import build_parser, main, normalize_argv
+from agentloop.models import ModelConfigurationError
 
 
 def test_normalize_argv_preserves_subcommands() -> None:
@@ -36,7 +36,7 @@ def test_run_command_reports_missing_model_dependency(
             "langchain-openai is required for the run command."
         )
 
-    monkeypatch.setattr("mini_agent.cli.build_model", raise_missing_dependency)
+    monkeypatch.setattr("agentloop.cli.build_model", raise_missing_dependency)
 
     with pytest.raises(SystemExit, match="langchain-openai is required"):
         main(["run", "hello"])
@@ -68,7 +68,7 @@ def test_doctor_command_prints_runtime_status(
     main(["doctor"])
 
     output = capsys.readouterr().out
-    assert "Mini Agent doctor" in output
+    assert "AgentLoop doctor" in output
     assert "Python:" in output
     assert "uv:" in output
     assert "langchain:" in output

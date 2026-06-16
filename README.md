@@ -101,10 +101,17 @@ Bundled tools are managed through the local tool runtime:
 - `calculator`: safely evaluates simple arithmetic.
 - `echo`: returns text unchanged.
 - `list_files`: lists direct children of a workspace directory.
+- `read_file`: reads a UTF-8 text file inside the workspace.
+- `search_text`: searches UTF-8 text files inside the workspace.
+- `project_tree`: shows a depth-limited workspace directory tree.
 
 Tool calls return normalized runtime metadata such as status, duration,
 risk level, and read-only state. The default bundled tools are low-risk
-and read-only.
+and read-only. Local file tools reject paths outside the current workspace.
+Tools marked high-risk or requiring confirmation are not executed silently:
+the runtime returns a confirmation result, and the agent emits an
+`intervention_request`. If the same tool fails 3 consecutive times in a run,
+the agent stops automatic retry and asks for user intervention.
 
 Check local deployment readiness:
 

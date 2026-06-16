@@ -139,6 +139,19 @@ class ToolRuntime:
                 error_code="unknown_tool",
             )
 
+        if metadata.requires_confirmation or metadata.risk_level is ToolRiskLevel.HIGH:
+            return ToolResult(
+                tool_name=name,
+                status=ToolResultStatus.REQUIRES_CONFIRMATION,
+                content=(
+                    "Tool requires confirmation (confirmation_required): "
+                    f"Tool '{name}' requires user confirmation before execution."
+                ),
+                metadata=metadata,
+                duration_ms=_elapsed_ms(started),
+                error_code="confirmation_required",
+            )
+
         try:
             result = tool.invoke(arguments)
         except Exception as exc:

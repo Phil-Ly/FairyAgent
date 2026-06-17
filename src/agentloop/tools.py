@@ -10,6 +10,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool, tool
 
+from agentloop.safety import ContentSource, SafetyPolicy
 from agentloop.tool_runtime import ToolMetadata, ToolRiskLevel, ToolRuntime
 
 _BINARY_OPERATORS: dict[type[ast.operator], Callable[[Any, Any], Any]] = {
@@ -218,12 +219,9 @@ def get_default_tools() -> list[BaseTool]:
 def _resolve_workspace_path(path: str) -> tuple[Path, Path]:
     """Return the workspace root and a resolved path within it."""
 
-    if not path.strip():
-        raise ValueError("Path cannot be empty.")
-    workspace_root = Path.cwd().resolve()
-    target = (workspace_root / path).resolve()
-    if not target.is_relative_to(workspace_root):
-        raise ValueError("Path is outside the workspace.")
+    policy = SafetyPolicy(workspace_root=Path.cwd())
+    workspace_root = policy.workspace_root
+    target = policy.resolve_workspace_path(path)
     return workspace_root, target
 
 
@@ -302,6 +300,7 @@ def get_default_tool_runtime() -> ToolRuntime:
     """Return the default low-risk local tool runtime."""
 
     tools = get_default_tools()
+    file_tools = {"list_files", "read_file", "search_text", "project_tree"}
     metadata = {
         tool.name: ToolMetadata(
             name=tool.name,
@@ -309,6 +308,11 @@ def get_default_tool_runtime() -> ToolRuntime:
             risk_level=ToolRiskLevel.LOW,
             requires_confirmation=False,
             read_only=True,
+            content_source=(
+                ContentSource.FILE
+                if tool.name in file_tools
+                else ContentSource.TOOL
+            ),
         )
         for tool in tools
     }

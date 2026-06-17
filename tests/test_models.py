@@ -58,6 +58,41 @@ def test_build_model_falls_back_to_openai_api_key(
     assert model.kwargs["api_key"] == "legacy-key"
 
 
+def test_build_model_uses_provider_preset_base_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_module = types.SimpleNamespace(ChatOpenAI=FakeChatOpenAI)
+    monkeypatch.setitem(sys.modules, "langchain_openai", fake_module)
+    config = AppConfig(
+        MODEL_PROVIDER="deepseek",
+        MODEL_NAME="deepseek-chat",
+        MODEL_API_KEY="test-key",
+        MAX_STEPS=8,
+    )
+
+    model = build_model(config)
+
+    assert model.kwargs["base_url"] == "https://api.deepseek.com"
+
+
+def test_build_model_allows_base_url_override_for_provider_preset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_module = types.SimpleNamespace(ChatOpenAI=FakeChatOpenAI)
+    monkeypatch.setitem(sys.modules, "langchain_openai", fake_module)
+    config = AppConfig(
+        MODEL_PROVIDER="qwen",
+        MODEL_NAME="qwen-plus",
+        MODEL_API_KEY="test-key",
+        MODEL_BASE_URL="https://proxy.example/v1",
+        MAX_STEPS=8,
+    )
+
+    model = build_model(config)
+
+    assert model.kwargs["base_url"] == "https://proxy.example/v1"
+
+
 def test_build_model_rejects_missing_compatible_key() -> None:
     config = AppConfig(
         MODEL_PROVIDER="openai_compatible",
@@ -78,5 +113,8 @@ def test_build_model_rejects_unknown_provider() -> None:
         MAX_STEPS=8,
     )
 
-    with pytest.raises(ModelConfigurationError, match="Unsupported MODEL_PROVIDER"):
+    with pytest.raises(ModelConfigurationError) as exc_info:
         build_model(config)
+
+    assert "Unsupported MODEL_PROVIDER: unknown" in str(exc_info.value)
+    assert "deepseek" in str(exc_info.value)

@@ -2,6 +2,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
 
 from agentloop.agent import AgentLoop
+from agentloop.intervention import InterventionAction, InterventionWorkflow
 from agentloop.memory import Memory
 from agentloop.tool_runtime import ToolMetadata, ToolRiskLevel, ToolRuntime
 from agentloop.tools import get_default_tool_runtime, get_default_tools
@@ -151,6 +152,32 @@ class HighRiskToolModel:
         return AIMessage(content="should not continue without confirmation")
 
 
+class HighRiskToolThenFinalModel:
+    """Model that requests one high-risk tool, then summarizes its result."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def bind_tools(self, tools: list) -> "HighRiskToolThenFinalModel":
+        self.tools = tools
+        return self
+
+    def invoke(self, messages: list) -> AIMessage:
+        self.calls += 1
+        if self.calls == 1:
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "id": "call_risky_resume",
+                        "name": "risky_write",
+                        "args": {},
+                    }
+                ],
+            )
+        return AIMessage(content=f"Approved result: {messages[-1].content}")
+
+
 class RepeatedFailingToolModel:
     """Model that repeats the same failing tool call."""
 
@@ -173,6 +200,32 @@ class RepeatedFailingToolModel:
                 }
             ],
         )
+
+
+class RepeatedFailingThenFinalModel:
+    """Model that repeats bad calls until the user allows continuation."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def bind_tools(self, tools: list) -> "RepeatedFailingThenFinalModel":
+        self.tools = tools
+        return self
+
+    def invoke(self, messages: list) -> AIMessage:
+        self.calls += 1
+        if self.calls <= 3:
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "id": f"call_bad_args_resume_{self.calls}",
+                        "name": "calculator",
+                        "args": {},
+                    }
+                ],
+            )
+        return AIMessage(content="Continuing after intervention.")
 
 
 @tool
@@ -361,7 +414,8 @@ def test_agent_stops_for_high_risk_tool_confirmation() -> None:
     intervention = messages[-1].additional_kwargs["intervention_request"]
     assert intervention["reason"] == "high_risk_action"
     assert intervention["tool_name"] == "risky_write"
-    assert intervention["recommended_option"] == "stop"
+    assert intervention["recommended_option"] == "reject"
+    assert intervention["options"] == ["approve", "reject", "edit", "stop"]
 
 
 def test_agent_stops_after_repeated_tool_failures() -> None:
@@ -393,3 +447,74 @@ def test_agent_stops_after_repeated_tool_failures() -> None:
     assert intervention["reason"] == "repeated_failure"
     assert intervention["tool_name"] == "calculator"
     assert intervention["failure_count"] == 3
+
+
+def test_agent_resumes_high_risk_tool_after_approval() -> None:
+    memory = Memory()
+    model = HighRiskToolThenFinalModel()
+    runtime = ToolRuntime.from_tools(
+        [risky_write],
+        metadata={
+            "risky_write": ToolMetadata(
+                name="risky_write",
+                description="Write something risky.",
+                risk_level=ToolRiskLevel.HIGH,
+                requires_confirmation=True,
+                read_only=False,
+            )
+        },
+    )
+    agent = AgentLoop(
+        model=model,
+        tools=runtime,
+        memory=memory,
+        max_steps=4,
+    )
+    workflow = InterventionWorkflow()
+
+    agent.run("write a file")
+    pending = agent.get_pending_intervention()
+    assert pending is not None
+    decision = workflow.create_decision(
+        pending.request,
+        action=InterventionAction.APPROVE,
+    )
+
+    result = agent.resolve_intervention(decision)
+
+    assert result == "Approved result: wrote"
+    assert model.calls == 2
+    assert agent.get_pending_intervention() is None
+    tool_messages = [
+        message
+        for message in memory.get_messages()
+        if isinstance(message, ToolMessage)
+    ]
+    assert tool_messages[-1].content == "wrote"
+    assert tool_messages[-1].additional_kwargs["status"] == "success"
+
+
+def test_agent_resumes_after_repeated_failure_continue() -> None:
+    memory = Memory()
+    model = RepeatedFailingThenFinalModel()
+    agent = AgentLoop(
+        model=model,
+        tools=get_default_tools(),
+        memory=memory,
+        max_steps=8,
+    )
+    workflow = InterventionWorkflow()
+
+    agent.run("keep trying calculator incorrectly")
+    pending = agent.get_pending_intervention()
+    assert pending is not None
+    decision = workflow.create_decision(
+        pending.request,
+        action=InterventionAction.CONTINUE,
+    )
+
+    result = agent.resolve_intervention(decision)
+
+    assert result == "Continuing after intervention."
+    assert model.calls == 4
+    assert agent.get_pending_intervention() is None

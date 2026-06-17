@@ -1,6 +1,10 @@
+from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.tools import tool
+
 from agentloop.agent import AgentLoop
 from agentloop.chat_session import ChatSession
 from agentloop.memory import Memory
+from agentloop.tool_runtime import ToolMetadata, ToolRiskLevel, ToolRuntime
 from agentloop.tools import get_default_tools
 from tests.fakes import DeterministicCalculatorModel
 
@@ -9,6 +13,60 @@ def build_test_session() -> ChatSession:
     agent = AgentLoop(
         model=DeterministicCalculatorModel(),
         tools=get_default_tools(),
+        memory=Memory(),
+        max_steps=4,
+    )
+    return ChatSession(agent=agent)
+
+
+class HighRiskThenFinalModel:
+    """Fake model that requests one high-risk tool and then returns final text."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def bind_tools(self, tools: list) -> "HighRiskThenFinalModel":
+        self.tools = tools
+        return self
+
+    def invoke(self, messages: list) -> AIMessage:
+        self.calls += 1
+        if self.calls == 1:
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {"id": "call_risky_chat", "name": "risky_write", "args": {}}
+                ],
+            )
+        last_message = messages[-1]
+        if isinstance(last_message, ToolMessage):
+            return AIMessage(content=f"Done: {last_message.content}")
+        return AIMessage(content="Done.")
+
+
+@tool
+def risky_write() -> str:
+    """Write something risky."""
+
+    return "wrote"
+
+
+def build_high_risk_session() -> ChatSession:
+    runtime = ToolRuntime.from_tools(
+        [risky_write],
+        metadata={
+            "risky_write": ToolMetadata(
+                name="risky_write",
+                description="Write something risky.",
+                risk_level=ToolRiskLevel.HIGH,
+                requires_confirmation=True,
+                read_only=False,
+            )
+        },
+    )
+    agent = AgentLoop(
+        model=HighRiskThenFinalModel(),
+        tools=runtime,
         memory=Memory(),
         max_steps=4,
     )
@@ -53,6 +111,18 @@ def test_chat_session_supports_clear_history_tools_and_doctor() -> None:
     assert session.agent.memory.get_messages() == []
 
 
+def test_chat_session_displays_context_report() -> None:
+    session = build_test_session()
+
+    empty_outputs = session.handle_line("/context")
+    session.handle_line("What is 2 + 2?")
+    context_outputs = session.handle_line("/context")
+
+    assert empty_outputs == ["context: none"]
+    assert context_outputs[0].startswith("context: estimated_tokens=")
+    assert any("original" in output for output in context_outputs)
+
+
 def test_chat_session_returns_exit_signal() -> None:
     session = build_test_session()
 
@@ -69,3 +139,38 @@ def test_chat_session_ignores_empty_input() -> None:
 
     assert outputs == []
     assert session.should_exit is False
+
+
+def test_chat_session_displays_and_approves_pending_intervention() -> None:
+    session = build_high_risk_session()
+
+    first_outputs = session.handle_line("write a file")
+    pending_outputs = session.handle_line("/pending")
+    approval_outputs = session.handle_line("/approve")
+
+    assert first_outputs == [
+        "tool-call: risky_write {}",
+        (
+            "tool-result: risky_write Tool requires confirmation "
+            "(confirmation_required): Tool 'risky_write' requires user confirmation "
+            "before execution."
+        ),
+        (
+            "assistant: Intervention required: Tool 'risky_write' requires user "
+            "confirmation before execution."
+        ),
+    ]
+    assert "pending: high_risk_action" in pending_outputs
+    assert "actions: approve, reject, edit, stop" in pending_outputs
+    assert approval_outputs == [
+        "tool-result: risky_write wrote",
+        "assistant: Done: wrote",
+    ]
+    assert session.agent.get_pending_intervention() is None
+
+
+def test_chat_session_reports_when_no_intervention_is_pending() -> None:
+    session = build_test_session()
+
+    assert session.handle_line("/pending") == ["pending: none"]
+    assert session.handle_line("/approve") == ["pending: none"]

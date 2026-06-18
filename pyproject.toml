@@ -1,5 +1,5 @@
 [project]
-name = "mini-agent-harness"
+name = "agentloop-harness"
 version = "0.1.0"
 description = "A minimal local agent harness with loop, memory, tools, and model client."
 readme = "README.md"
@@ -28,7 +28,7 @@ dev = [
 ]
 
 [project.scripts]
-mini-agent = "mini_agent.cli:main"
+agentloop = "agentloop.cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -42,7 +42,7 @@ markers = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mini_agent"]
+packages = ["src/agentloop"]
 
 [tool.ruff]
 line-length = 88

@@ -25,6 +25,17 @@ class AppConfig(BaseModel):
         gt=0,
     )
     max_steps: int = Field(default=8, alias="MAX_STEPS", gt=0)
+    context_max_tokens: int = Field(default=8000, alias="CONTEXT_MAX_TOKENS", gt=0)
+    context_reserved_output_tokens: int = Field(
+        default=1000,
+        alias="CONTEXT_RESERVED_OUTPUT_TOKENS",
+        ge=0,
+    )
+    context_summary_max_tokens: int = Field(
+        default=800,
+        alias="CONTEXT_SUMMARY_MAX_TOKENS",
+        gt=0,
+    )
 
     @computed_field
     @property
@@ -67,9 +78,23 @@ def load_config() -> AppConfig:
     model_timeout = os.getenv("MODEL_TIMEOUT_SECONDS", "60")
     if not _is_integer(model_timeout):
         raise ConfigurationError("MODEL_TIMEOUT_SECONDS must be an integer.")
+    context_max_tokens = os.getenv("CONTEXT_MAX_TOKENS", "8000")
+    if not _is_integer(context_max_tokens):
+        raise ConfigurationError("CONTEXT_MAX_TOKENS must be an integer.")
+    context_reserved_output_tokens = os.getenv(
+        "CONTEXT_RESERVED_OUTPUT_TOKENS",
+        "1000",
+    )
+    if not _is_integer(context_reserved_output_tokens):
+        raise ConfigurationError(
+            "CONTEXT_RESERVED_OUTPUT_TOKENS must be an integer."
+        )
+    context_summary_max_tokens = os.getenv("CONTEXT_SUMMARY_MAX_TOKENS", "800")
+    if not _is_integer(context_summary_max_tokens):
+        raise ConfigurationError("CONTEXT_SUMMARY_MAX_TOKENS must be an integer.")
 
     try:
-        return AppConfig(
+        config = AppConfig(
             OPENAI_API_KEY=os.getenv("OPENAI_API_KEY"),
             MODEL_PROVIDER=os.getenv("MODEL_PROVIDER", "openai_compatible"),
             MODEL_API_KEY=os.getenv("MODEL_API_KEY"),
@@ -78,9 +103,17 @@ def load_config() -> AppConfig:
             MODEL_TEMPERATURE=float(model_temperature),
             MODEL_TIMEOUT_SECONDS=int(model_timeout),
             MAX_STEPS=int(max_steps),
+            CONTEXT_MAX_TOKENS=int(context_max_tokens),
+            CONTEXT_RESERVED_OUTPUT_TOKENS=int(context_reserved_output_tokens),
+            CONTEXT_SUMMARY_MAX_TOKENS=int(context_summary_max_tokens),
         )
     except ValidationError as exc:
         raise ConfigurationError(_format_validation_error(exc)) from exc
+    if config.context_reserved_output_tokens >= config.context_max_tokens:
+        raise ConfigurationError(
+            "CONTEXT_RESERVED_OUTPUT_TOKENS must be less than CONTEXT_MAX_TOKENS."
+        )
+    return config
 
 
 def _is_integer(value: str) -> bool:
@@ -118,4 +151,10 @@ def _format_validation_error(error: ValidationError) -> str:
             return "MODEL_TEMPERATURE must be greater than or equal to 0."
         if field == "MODEL_TIMEOUT_SECONDS":
             return "MODEL_TIMEOUT_SECONDS must be greater than 0."
+        if field == "CONTEXT_MAX_TOKENS":
+            return "CONTEXT_MAX_TOKENS must be greater than 0."
+        if field == "CONTEXT_RESERVED_OUTPUT_TOKENS":
+            return "CONTEXT_RESERVED_OUTPUT_TOKENS must be greater than or equal to 0."
+        if field == "CONTEXT_SUMMARY_MAX_TOKENS":
+            return "CONTEXT_SUMMARY_MAX_TOKENS must be greater than 0."
     return "Invalid configuration."

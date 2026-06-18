@@ -6,9 +6,9 @@ import sys
 
 from local_model import ExampleCalculatorModel
 
-from mini_agent.agent import MiniAgent
-from mini_agent.memory import Memory
-from mini_agent.tools import get_default_tools
+from agentloop.agent import AgentLoop
+from agentloop.memory import Memory
+from agentloop.tools import get_default_tools
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -18,7 +18,7 @@ def main(argv: list[str] | None = None) -> None:
     if not prompt_parts:
         raise SystemExit('Usage: python examples/local_run.py "What is 2 + 2?"')
 
-    agent = MiniAgent(
+    agent = AgentLoop(
         model=ExampleCalculatorModel(),
         tools=get_default_tools(),
         memory=Memory(),

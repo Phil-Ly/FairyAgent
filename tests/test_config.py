@@ -1,6 +1,6 @@
 import pytest
 
-from mini_agent.config import ConfigurationError, load_config
+from agentloop.config import ConfigurationError, load_config
 
 
 def test_load_config_uses_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -12,6 +12,9 @@ def test_load_config_uses_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("MODEL_TEMPERATURE", raising=False)
     monkeypatch.delenv("MODEL_TIMEOUT_SECONDS", raising=False)
     monkeypatch.delenv("MAX_STEPS", raising=False)
+    monkeypatch.delenv("CONTEXT_MAX_TOKENS", raising=False)
+    monkeypatch.delenv("CONTEXT_RESERVED_OUTPUT_TOKENS", raising=False)
+    monkeypatch.delenv("CONTEXT_SUMMARY_MAX_TOKENS", raising=False)
 
     config = load_config()
 
@@ -23,6 +26,9 @@ def test_load_config_uses_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert config.model_temperature == 0
     assert config.model_timeout_seconds == 60
     assert config.max_steps == 8
+    assert config.context_max_tokens == 8000
+    assert config.context_reserved_output_tokens == 1000
+    assert config.context_summary_max_tokens == 800
 
 
 def test_load_config_reads_openai_compatible_provider(
@@ -34,6 +40,9 @@ def test_load_config_reads_openai_compatible_provider(
     monkeypatch.setenv("MODEL_NAME", " deepseek-chat ")
     monkeypatch.setenv("MODEL_TEMPERATURE", "0.3")
     monkeypatch.setenv("MODEL_TIMEOUT_SECONDS", "45")
+    monkeypatch.setenv("CONTEXT_MAX_TOKENS", "12000")
+    monkeypatch.setenv("CONTEXT_RESERVED_OUTPUT_TOKENS", "1500")
+    monkeypatch.setenv("CONTEXT_SUMMARY_MAX_TOKENS", "900")
 
     config = load_config()
 
@@ -44,6 +53,9 @@ def test_load_config_reads_openai_compatible_provider(
     assert config.model_name == "deepseek-chat"
     assert config.model_temperature == 0.3
     assert config.model_timeout_seconds == 45
+    assert config.context_max_tokens == 12000
+    assert config.context_reserved_output_tokens == 1500
+    assert config.context_summary_max_tokens == 900
 
 
 def test_load_config_rejects_non_integer_max_steps(
@@ -122,5 +134,30 @@ def test_load_config_rejects_negative_timeout(
     with pytest.raises(
         ConfigurationError,
         match="MODEL_TIMEOUT_SECONDS must be greater than 0",
+    ):
+        load_config()
+
+
+def test_load_config_rejects_non_integer_context_max_tokens(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CONTEXT_MAX_TOKENS", "many")
+
+    with pytest.raises(
+        ConfigurationError,
+        match="CONTEXT_MAX_TOKENS must be an integer",
+    ):
+        load_config()
+
+
+def test_load_config_rejects_context_reserved_tokens_exceeding_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CONTEXT_MAX_TOKENS", "100")
+    monkeypatch.setenv("CONTEXT_RESERVED_OUTPUT_TOKENS", "100")
+
+    with pytest.raises(
+        ConfigurationError,
+        match="CONTEXT_RESERVED_OUTPUT_TOKENS must be less than CONTEXT_MAX_TOKENS",
     ):
         load_config()

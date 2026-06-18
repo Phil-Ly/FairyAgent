@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from local_model import ExampleCalculatorModel
 
-from mini_agent.agent import MiniAgent
-from mini_agent.chat_session import ChatSession
-from mini_agent.cli import run_chat_session
-from mini_agent.memory import Memory
-from mini_agent.tools import get_default_tools
+from agentloop.agent import AgentLoop
+from agentloop.chat_session import ChatSession
+from agentloop.cli import run_chat_session
+from agentloop.memory import Memory
+from agentloop.tools import get_default_tools
 
 
 def main() -> None:
     """Run a local interactive chat example."""
 
-    agent = MiniAgent(
+    agent = AgentLoop(
         model=ExampleCalculatorModel(),
         tools=get_default_tools(),
         memory=Memory(),

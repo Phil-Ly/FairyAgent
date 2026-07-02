@@ -12,10 +12,13 @@ This project expects Python 3.12 and `uv`.
 uv sync
 ```
 
-The default install supports core development and local examples. Real model provider usage through OpenAI-compatible APIs is optional:
+The default install supports core development and local examples. Install the
+extra matching the model protocol you want to use:
 
 ```bash
 uv sync --extra openai-compatible
+uv sync --extra anthropic
+uv sync --extra gemini
 ```
 
 ## Configure
@@ -36,7 +39,32 @@ MODEL_TIMEOUT_SECONDS=60
 MAX_STEPS=8
 ```
 
-`MODEL_API_KEY` is preferred. `OPENAI_API_KEY` remains as a legacy fallback, but new provider configs should use `MODEL_API_KEY`.
+`MODEL_API_KEY` is an explicit override for every provider. Without it, each
+provider uses its official environment variables:
+
+- OpenAI-compatible: `OPENAI_API_KEY`
+- Anthropic: `ANTHROPIC_API_KEY`
+- Gemini: `GOOGLE_API_KEY`, then `GEMINI_API_KEY`
+
+Native Anthropic configuration:
+
+```env
+MODEL_PROVIDER=anthropic
+MODEL_NAME=claude-sonnet-4-6
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+```
+
+Native Gemini configuration:
+
+```env
+MODEL_PROVIDER=gemini
+MODEL_NAME=gemini-2.5-flash
+GOOGLE_API_KEY=your_google_api_key_here
+```
+
+`MODEL_BASE_URL` can override the selected provider's default endpoint. Omit
+`MODEL_TEMPERATURE` to let the provider integration choose its model-specific
+default.
 
 Example OpenAI-compatible endpoints:
 
@@ -48,7 +76,8 @@ Never commit `.env` or real API keys. `.env.example` should contain placeholders
 
 ## Run
 
-Run with the configured model provider after installing the optional compatible-provider extra and setting `MODEL_API_KEY`:
+Run after installing the matching provider extra and configuring an accepted
+API key:
 
 ```bash
 uv run python -m agentloop.cli run "What is 2 + 3 * 4?"

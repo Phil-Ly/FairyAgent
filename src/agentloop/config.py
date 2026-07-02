@@ -14,11 +14,18 @@ class AppConfig(BaseModel):
     """Runtime configuration read from environment variables."""
 
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
+    google_api_key: str | None = Field(default=None, alias="GOOGLE_API_KEY")
+    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
     model_provider: str = Field(default="openai_compatible", alias="MODEL_PROVIDER")
     model_api_key: str | None = Field(default=None, alias="MODEL_API_KEY")
     model_base_url: str | None = Field(default=None, alias="MODEL_BASE_URL")
     model_name: str = Field(default="gpt-4.1-mini", alias="MODEL_NAME")
-    model_temperature: float = Field(default=0, alias="MODEL_TEMPERATURE", ge=0)
+    model_temperature: float | None = Field(
+        default=None,
+        alias="MODEL_TEMPERATURE",
+        ge=0,
+    )
     model_timeout_seconds: int = Field(
         default=60,
         alias="MODEL_TIMEOUT_SECONDS",
@@ -42,9 +49,30 @@ class AppConfig(BaseModel):
     def resolved_model_api_key(self) -> str | None:
         """Return the preferred model API key with legacy fallback."""
 
-        return self.model_api_key or self.openai_api_key
+        return self.resolve_model_api_key(("OPENAI_API_KEY",))
 
-    @field_validator("openai_api_key", "model_api_key", "model_base_url")
+    def resolve_model_api_key(
+        self,
+        fallback_env_vars: tuple[str, ...],
+    ) -> str | None:
+        """Resolve an explicit key or the configured provider-specific fallback."""
+
+        if self.model_api_key:
+            return self.model_api_key
+        for env_var in fallback_env_vars:
+            value = getattr(self, env_var.lower(), None)
+            if value:
+                return value
+        return None
+
+    @field_validator(
+        "openai_api_key",
+        "anthropic_api_key",
+        "google_api_key",
+        "gemini_api_key",
+        "model_api_key",
+        "model_base_url",
+    )
     @classmethod
     def normalize_optional_string(cls, value: str | None) -> str | None:
         """Trim optional strings and treat blank values as missing."""
@@ -72,8 +100,8 @@ def load_config() -> AppConfig:
     max_steps = os.getenv("MAX_STEPS", "8")
     if not _is_integer(max_steps):
         raise ConfigurationError("MAX_STEPS must be an integer.")
-    model_temperature = os.getenv("MODEL_TEMPERATURE", "0")
-    if not _is_float(model_temperature):
+    model_temperature = os.getenv("MODEL_TEMPERATURE")
+    if model_temperature is not None and not _is_float(model_temperature):
         raise ConfigurationError("MODEL_TEMPERATURE must be a number.")
     model_timeout = os.getenv("MODEL_TIMEOUT_SECONDS", "60")
     if not _is_integer(model_timeout):
@@ -96,11 +124,16 @@ def load_config() -> AppConfig:
     try:
         config = AppConfig(
             OPENAI_API_KEY=os.getenv("OPENAI_API_KEY"),
+            ANTHROPIC_API_KEY=os.getenv("ANTHROPIC_API_KEY"),
+            GOOGLE_API_KEY=os.getenv("GOOGLE_API_KEY"),
+            GEMINI_API_KEY=os.getenv("GEMINI_API_KEY"),
             MODEL_PROVIDER=os.getenv("MODEL_PROVIDER", "openai_compatible"),
             MODEL_API_KEY=os.getenv("MODEL_API_KEY"),
             MODEL_BASE_URL=os.getenv("MODEL_BASE_URL"),
             MODEL_NAME=os.getenv("MODEL_NAME", "gpt-4.1-mini"),
-            MODEL_TEMPERATURE=float(model_temperature),
+            MODEL_TEMPERATURE=(
+                float(model_temperature) if model_temperature is not None else None
+            ),
             MODEL_TIMEOUT_SECONDS=int(model_timeout),
             MAX_STEPS=int(max_steps),
             CONTEXT_MAX_TOKENS=int(context_max_tokens),

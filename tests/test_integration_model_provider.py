@@ -3,9 +3,10 @@ import os
 import pytest
 
 from agentloop.agent import AgentLoop
-from agentloop.config import AppConfig
+from agentloop.config import load_config
 from agentloop.memory import Memory
 from agentloop.models import build_model
+from agentloop.provider_registry import DEFAULT_PROVIDER_REGISTRY
 from agentloop.tools import get_default_tools
 
 
@@ -16,22 +17,17 @@ def test_model_provider_can_answer_without_tool() -> None:
     if os.getenv("RUN_MODEL_INTEGRATION_TESTS") != "1":
         pytest.skip("Set RUN_MODEL_INTEGRATION_TESTS=1 to run provider tests.")
 
-    api_key = os.getenv("MODEL_API_KEY") or os.getenv("OPENAI_API_KEY")
+    config = load_config()
+    preset = DEFAULT_PROVIDER_REGISTRY.get(config.model_provider)
+    api_key = config.resolve_model_api_key(preset.api_key_env_vars)
     if not api_key:
-        pytest.skip("MODEL_API_KEY or OPENAI_API_KEY is required.")
+        accepted_keys = " or ".join(("MODEL_API_KEY", *preset.api_key_env_vars))
+        pytest.skip(f"{accepted_keys} is required.")
 
-    pytest.importorskip("langchain_openai")
+    pytest.importorskip(preset.dependency_module)
 
     agent = AgentLoop(
-        model=build_model(
-            AppConfig(
-                MODEL_PROVIDER=os.getenv("MODEL_PROVIDER", "openai_compatible"),
-                MODEL_API_KEY=api_key,
-                MODEL_BASE_URL=os.getenv("MODEL_BASE_URL"),
-                MODEL_NAME=os.getenv("MODEL_NAME", "gpt-4.1-mini"),
-                MAX_STEPS=2,
-            )
-        ),
+        model=build_model(config.model_copy(update={"max_steps": 2})),
         tools=get_default_tools(),
         memory=Memory(),
         max_steps=2,

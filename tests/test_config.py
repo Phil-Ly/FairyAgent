@@ -5,6 +5,9 @@ from agentloop.config import ConfigurationError, load_config
 
 def test_load_config_uses_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("MODEL_PROVIDER", raising=False)
     monkeypatch.delenv("MODEL_API_KEY", raising=False)
     monkeypatch.delenv("MODEL_BASE_URL", raising=False)
@@ -19,11 +22,14 @@ def test_load_config_uses_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     config = load_config()
 
     assert config.openai_api_key is None
+    assert config.anthropic_api_key is None
+    assert config.google_api_key is None
+    assert config.gemini_api_key is None
     assert config.model_provider == "openai_compatible"
     assert config.model_api_key is None
     assert config.model_base_url is None
     assert config.model_name == "gpt-4.1-mini"
-    assert config.model_temperature == 0
+    assert config.model_temperature is None
     assert config.model_timeout_seconds == 60
     assert config.max_steps == 8
     assert config.context_max_tokens == 8000
@@ -106,6 +112,20 @@ def test_load_config_falls_back_to_legacy_openai_key(
     assert config.model_api_key is None
     assert config.openai_api_key == "legacy-key"
     assert config.resolved_model_api_key == "legacy-key"
+
+
+def test_load_config_reads_native_provider_api_keys(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", " anthropic-key ")
+    monkeypatch.setenv("GOOGLE_API_KEY", " google-key ")
+    monkeypatch.setenv("GEMINI_API_KEY", " gemini-key ")
+
+    config = load_config()
+
+    assert config.anthropic_api_key == "anthropic-key"
+    assert config.google_api_key == "google-key"
+    assert config.gemini_api_key == "gemini-key"
 
 
 def test_load_config_rejects_empty_model_provider(

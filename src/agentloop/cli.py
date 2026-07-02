@@ -263,9 +263,6 @@ def _build_agent(
     if updates:
         config = config.model_copy(update=updates)
 
-    if not config.resolved_model_api_key:
-        raise SystemExit("MODEL_API_KEY is required. Copy .env.example to .env.")
-
     try:
         model = build_model(config)
     except ModelConfigurationError as exc:

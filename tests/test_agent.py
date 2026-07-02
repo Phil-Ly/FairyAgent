@@ -34,6 +34,22 @@ class FakeChatModel:
         return AIMessage(content="The answer is 84.")
 
 
+class ContentBlockChatModel:
+    """Model client that returns provider-style content blocks."""
+
+    def bind_tools(self, tools: list) -> "ContentBlockChatModel":
+        self.tools = tools
+        return self
+
+    def invoke(self, messages: list) -> AIMessage:
+        return AIMessage(
+            content=[
+                {"type": "thinking", "thinking": "internal"},
+                {"type": "text", "text": "A normalized answer."},
+            ]
+        )
+
+
 class NeverFinalChatModel:
     """Model client that never produces a final answer."""
 
@@ -277,6 +293,19 @@ def test_agent_completes_tool_call_loop() -> None:
     assert messages[2].additional_kwargs["duration_ms"] >= 0
     assert isinstance(messages[3], AIMessage)
     assert messages[3].content == "The answer is 84."
+
+
+def test_agent_returns_text_from_provider_content_blocks() -> None:
+    agent = AgentLoop(
+        model=ContentBlockChatModel(),
+        tools=get_default_tools(),
+        memory=Memory(),
+        max_steps=2,
+    )
+
+    result = agent.run("Answer with content blocks.")
+
+    assert result == "A normalized answer."
 
 
 def test_agent_accepts_tool_runtime_and_binds_langchain_tools() -> None:

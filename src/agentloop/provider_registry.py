@@ -3,23 +3,34 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 
 class UnknownProviderError(RuntimeError):
     """Raised when MODEL_PROVIDER does not match a registered preset."""
 
 
+class ModelProtocol(StrEnum):
+    """Protocols supported by the built-in model builders."""
+
+    OPENAI_COMPATIBLE = "openai_compatible"
+    ANTHROPIC_MESSAGES = "anthropic_messages"
+    GOOGLE_GENAI = "google_genai"
+
+
 @dataclass(frozen=True)
 class ProviderPreset:
-    """OpenAI-compatible provider metadata used by model construction."""
+    """Provider metadata used for protocol-aware model construction."""
 
     name: str
+    protocol: ModelProtocol = ModelProtocol.OPENAI_COMPATIBLE
     aliases: tuple[str, ...] = ()
     base_url: str | None = None
     dependency_module: str = "langchain_openai"
     dependency_package: str = "langchain-openai"
     dependency_extra: str = "openai-compatible"
     model_factory: str = "ChatOpenAI"
+    api_key_env_vars: tuple[str, ...] = ("OPENAI_API_KEY",)
 
     def resolve_base_url(self, override: str | None) -> str | None:
         """Return an explicit override or this preset's default base URL."""
@@ -34,7 +45,7 @@ class ProviderPreset:
 
 
 class ProviderRegistry:
-    """Registry of provider names and OpenAI-compatible presets."""
+    """Registry of provider names and protocol-aware presets."""
 
     def __init__(self, presets: tuple[ProviderPreset, ...] | None = None) -> None:
         self._presets = presets or DEFAULT_PROVIDER_PRESETS
@@ -83,6 +94,26 @@ DEFAULT_PROVIDER_PRESETS = (
         name="kimi",
         aliases=("moonshot",),
         base_url="https://api.moonshot.cn/v1",
+    ),
+    ProviderPreset(
+        name="anthropic",
+        protocol=ModelProtocol.ANTHROPIC_MESSAGES,
+        aliases=("claude",),
+        dependency_module="langchain_anthropic",
+        dependency_package="langchain-anthropic",
+        dependency_extra="anthropic",
+        model_factory="ChatAnthropic",
+        api_key_env_vars=("ANTHROPIC_API_KEY",),
+    ),
+    ProviderPreset(
+        name="gemini",
+        protocol=ModelProtocol.GOOGLE_GENAI,
+        aliases=("google_genai",),
+        dependency_module="langchain_google_genai",
+        dependency_package="langchain-google-genai",
+        dependency_extra="gemini",
+        model_factory="ChatGoogleGenerativeAI",
+        api_key_env_vars=("GOOGLE_API_KEY", "GEMINI_API_KEY"),
     ),
 )
 

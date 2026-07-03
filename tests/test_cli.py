@@ -53,7 +53,10 @@ def test_run_command_reports_missing_model_api_key(
     monkeypatch.delenv("MODEL_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-    with pytest.raises(SystemExit, match="MODEL_API_KEY is required"):
+    with pytest.raises(
+        SystemExit,
+        match="MODEL_API_KEY or OPENAI_API_KEY is required",
+    ):
         main(["run", "hello"])
 
 
@@ -63,8 +66,33 @@ def test_chat_command_reports_missing_model_api_key(
     monkeypatch.delenv("MODEL_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-    with pytest.raises(SystemExit, match="MODEL_API_KEY is required"):
+    with pytest.raises(
+        SystemExit,
+        match="MODEL_API_KEY or OPENAI_API_KEY is required",
+    ):
         main(["chat"])
+
+
+def test_run_command_accepts_provider_specific_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MODEL_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("MODEL_PROVIDER", "anthropic")
+    monkeypatch.setenv("MODEL_NAME", "claude-sonnet-4-6")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "anthropic-key")
+
+    def confirm_provider_key_reaches_model_layer(config):
+        assert config.anthropic_api_key == "anthropic-key"
+        raise ModelConfigurationError("model-layer-sentinel")
+
+    monkeypatch.setattr(
+        "agentloop.cli.build_model",
+        confirm_provider_key_reaches_model_layer,
+    )
+
+    with pytest.raises(SystemExit, match="model-layer-sentinel"):
+        main(["run", "hello"])
 
 
 def test_doctor_command_prints_runtime_status(
@@ -88,6 +116,22 @@ def test_doctor_command_prints_runtime_status(
     assert "safety_policy:" in output
     assert "test-key" not in output
     assert "tools: calculator, echo" in output
+
+
+def test_doctor_reports_active_native_provider_dependency_and_key(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("MODEL_PROVIDER", "anthropic")
+    monkeypatch.setenv("MODEL_NAME", "claude-sonnet-4-6")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "anthropic-key")
+
+    main(["doctor"])
+
+    output = capsys.readouterr().out
+    assert "langchain-anthropic:" in output
+    assert "ANTHROPIC_API_KEY: configured" in output
+    assert "anthropic-key" not in output
 
 
 def test_run_command_reports_configuration_errors(

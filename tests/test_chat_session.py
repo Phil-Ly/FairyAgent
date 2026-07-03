@@ -2,7 +2,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import tool
 
 from agentloop.agent import AgentLoop
-from agentloop.chat_session import ChatSession
+from agentloop.chat_session import ChatSession, format_ai_message
 from agentloop.memory import Memory
 from agentloop.tool_runtime import ToolMetadata, ToolRiskLevel, ToolRuntime
 from agentloop.tools import get_default_tools
@@ -17,6 +17,17 @@ def build_test_session() -> ChatSession:
         max_steps=4,
     )
     return ChatSession(agent=agent)
+
+
+def test_format_ai_message_extracts_text_from_content_blocks() -> None:
+    message = AIMessage(
+        content=[
+            {"type": "thinking", "thinking": "internal"},
+            {"type": "text", "text": "A normalized answer."},
+        ]
+    )
+
+    assert format_ai_message(message) == ["assistant: A normalized answer."]
 
 
 class HighRiskThenFinalModel:

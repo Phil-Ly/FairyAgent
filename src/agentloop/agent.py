@@ -127,7 +127,7 @@ class AgentLoop:
         else:
             self._finish_trace_run(TraceRunStatus.COMPLETED, stop_reason)
             self._active_trace_run_id = None
-        return str(last_message.content)
+        return str(last_message.text)
 
     def get_pending_intervention(self) -> PendingIntervention | None:
         """Return the pending intervention context, if the run is paused."""

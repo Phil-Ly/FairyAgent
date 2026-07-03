@@ -166,7 +166,7 @@ def format_ai_message(message: BaseMessage) -> list[str]:
     lines: list[str] = []
     for tool_call in getattr(message, "tool_calls", []):
         lines.append(f"tool-call: {tool_call['name']} {tool_call.get('args', {})}")
-    content = str(message.content)
+    content = str(message.text)
     if content:
         lines.append(f"assistant: {content}")
     return lines

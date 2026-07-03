@@ -12,6 +12,10 @@ from langchain_core.tools import BaseTool
 
 from agentloop.config import ConfigurationError, load_config
 from agentloop.memory_store import SQLiteMemoryStore
+from agentloop.provider_registry import (
+    DEFAULT_PROVIDER_REGISTRY,
+    UnknownProviderError,
+)
 from agentloop.safety import SafetyPolicy
 from agentloop.session_store import SQLiteSessionStore
 from agentloop.storage import (
@@ -62,7 +66,6 @@ def get_doctor_lines() -> list[str]:
         f"uv: {'installed' if shutil.which('uv') else 'missing'}",
         f"langchain: {_package_status('langchain')}",
         f"langgraph: {_package_status('langgraph')}",
-        f"langchain-openai: {_package_status('langchain_openai')}",
     ]
     if config is None:
         lines.append("configuration: invalid")
@@ -80,10 +83,21 @@ def get_doctor_lines() -> list[str]:
             f"{'configured' if config.model_api_key else 'missing'}"
         )
         lines.append(f"MAX_STEPS: {config.max_steps}")
-        lines.append(
-            "OPENAI_API_KEY: "
-            f"{'configured' if config.openai_api_key else 'missing'}"
-        )
+        try:
+            preset = DEFAULT_PROVIDER_REGISTRY.get(config.model_provider)
+        except UnknownProviderError as exc:
+            lines.append("provider: invalid")
+            lines.append(f"provider_error: {exc}")
+        else:
+            lines.append(
+                f"{preset.dependency_package}: "
+                f"{_package_status(preset.dependency_module)}"
+            )
+            for env_var in preset.api_key_env_vars:
+                value = getattr(config, env_var.lower(), None)
+                lines.append(
+                    f"{env_var}: {'configured' if value else 'missing'}"
+                )
     lines.extend(_storage_status_lines())
     lines.extend(_safety_status_lines())
     lines.append(
